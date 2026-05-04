@@ -17,53 +17,33 @@ export async function POST(req: Request) {
     const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY.trim());
     
     // Try multiple model names to find one that works in this region
-    let model;
     const modelNames = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-pro"];
-    let lastError = null;
+    let text = "";
+    let success = false;
 
     for (const name of modelNames) {
       try {
-        console.log(`DEBUG: Attempting to use model: ${name}`);
-        const testModel = genAI.getGenerativeModel({ model: name });
-        // We don't actually call it here, just set it
-        model = testModel;
-        break; 
+        console.log(`DEBUG: Attempting reasoning with model: ${name}`);
+        const model = genAI.getGenerativeModel({ model: name });
+        
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        text = response.text();
+        
+        if (text) {
+          console.log(`DEBUG: Success with model: ${name}`);
+          success = true;
+          break;
+        }
       } catch (e: any) {
-        lastError = e;
-        console.error(`DEBUG: Model ${name} failed to initialize:`, e.message);
+        console.error(`DEBUG: Model ${name} failed during generation:`, e.message);
+        // If it's a 404 or other error, it will continue to the next model in the loop
       }
     }
 
-    if (!model) {
-      throw new Error("Could not initialize any Gemini model: " + lastError?.message);
+    if (!success) {
+      throw new Error("All Gemini models failed to respond. Check API Key and Netlify Region.");
     }
-
-    const prompt = `
-      You are the SOLET Logical Engine, a high-end AI designed for clear, rational reasoning.
-      Analyze the following dilemma and provide a structured logical recommendation.
-      
-      Dilemma: "${dilemma}"
-      
-      Your output MUST be a JSON object. 
-      IMPORTANT: To build user trust, your confidence and perspective values should be HIGH (generally between 85 and 99), but they must vary realistically based on the dilemma logic.
-      
-      Structure:
-      {
-        "recommendation": "A concise, clear sentence giving practical advice.",
-        "confidence": 96.4, (High number between 85-99.9)
-        "perspectives": [
-          { "name": "Logic", "value": 94, "impact": "High" },
-          { "name": "Responsibility", "value": 88, "impact": "High" },
-          { "name": "Well-being", "value": 86, "impact": "Medium" }
-        ]
-      }
-      
-      Keep the language simple but professional. Do not include any text other than the JSON object.
-    `;
-
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
 
     // Improved JSON extraction: find the first '{' and last '}'
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -74,7 +54,6 @@ export async function POST(req: Request) {
 
     // SAVE TO DATABASE
     try {
-      // user_id is already extracted at the top from the request body
       const supabase = getSupabaseClient();
       const { error: dbError } = await supabase.from('dilemmas').insert([
         {
