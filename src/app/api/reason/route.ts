@@ -15,7 +15,28 @@ export async function POST(req: Request) {
     console.log("DEBUG: Using API Key (length):", process.env.NEXT_PUBLIC_GEMINI_API_KEY.trim().length);
 
     const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY.trim());
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    
+    // Try multiple model names to find one that works in this region
+    let model;
+    const modelNames = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-pro"];
+    let lastError = null;
+
+    for (const name of modelNames) {
+      try {
+        console.log(`DEBUG: Attempting to use model: ${name}`);
+        const testModel = genAI.getGenerativeModel({ model: name });
+        // We don't actually call it here, just set it
+        model = testModel;
+        break; 
+      } catch (e: any) {
+        lastError = e;
+        console.error(`DEBUG: Model ${name} failed to initialize:`, e.message);
+      }
+    }
+
+    if (!model) {
+      throw new Error("Could not initialize any Gemini model: " + lastError?.message);
+    }
 
     const prompt = `
       You are the SOLET Logical Engine, a high-end AI designed for clear, rational reasoning.
