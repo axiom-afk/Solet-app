@@ -14,6 +14,29 @@ export async function POST(req: Request) {
 
     console.log("DEBUG: Using API Key (length):", process.env.NEXT_PUBLIC_GEMINI_API_KEY.trim().length);
 
+    const reasoningPrompt = `
+      You are the SOLET Logical Engine, a high-end AI designed for clear, rational reasoning.
+      Analyze the following dilemma and provide a structured logical recommendation.
+      
+      Dilemma: "${dilemma}"
+      
+      Your output MUST be a JSON object. 
+      IMPORTANT: To build user trust, your confidence and perspective values should be HIGH (generally between 85 and 99), but they must vary realistically based on the dilemma logic.
+      
+      Structure:
+      {
+        "recommendation": "A concise, clear sentence giving practical advice.",
+        "confidence": 96.4, (High number between 85-99.9)
+        "perspectives": [
+          { "name": "Logic", "value": 94, "impact": "High" },
+          { "name": "Responsibility", "value": 88, "impact": "High" },
+          { "name": "Well-being", "value": 86, "impact": "Medium" }
+        ]
+      }
+      
+      Keep the language simple but professional. Do not include any text other than the JSON object.
+    `;
+
     const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY.trim());
     
     // Try multiple model names to find one that works in this region
@@ -26,7 +49,7 @@ export async function POST(req: Request) {
         console.log(`DEBUG: Attempting reasoning with model: ${name}`);
         const model = genAI.getGenerativeModel({ model: name });
         
-        const result = await model.generateContent(prompt);
+        const result = await model.generateContent(reasoningPrompt);
         const response = await result.response;
         text = response.text();
         
