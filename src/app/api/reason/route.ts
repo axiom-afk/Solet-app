@@ -8,10 +8,13 @@ export async function POST(req: Request) {
     const { dilemma, user_id } = body;
 
     if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY) {
+      console.error("DEBUG: NEXT_PUBLIC_GEMINI_API_KEY is missing from environment.");
       return NextResponse.json({ error: "API Key is missing." }, { status: 500 });
     }
 
-    const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
+    console.log("DEBUG: Using API Key (length):", process.env.NEXT_PUBLIC_GEMINI_API_KEY.trim().length);
+
+    const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY.trim());
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const prompt = `
