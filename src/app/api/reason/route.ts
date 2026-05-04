@@ -37,44 +37,34 @@ export async function POST(req: Request) {
       Keep the language simple but professional. Do not include any text other than the JSON object.
     `;
 
-    const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY.trim());
+    // DIRECT REST API CALL (Bypassing the library to fix 404 errors)
+    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY.trim();
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     
-    // Try both short names and full "models/" names
-    const modelNames = [
-      "gemini-1.5-flash", 
-      "models/gemini-1.5-flash",
-      "gemini-1.5-flash-latest", 
-      "models/gemini-1.5-flash-latest",
-      "gemini-pro",
-      "models/gemini-pro"
-    ];
-    let text = "";
-    let success = false;
+    console.log("DEBUG: Attempting direct REST API call to Gemini 1.5 Flash");
 
-    for (const name of modelNames) {
-      try {
-        console.log(`DEBUG: Attempting reasoning with model: ${name}`);
-        const model = genAI.getGenerativeModel({ model: name });
-        
-        const result = await model.generateContent(reasoningPrompt);
-        const response = await result.response;
-        text = response.text();
-        
-        if (text) {
-          console.log(`DEBUG: Success with model: ${name}`);
-          success = true;
-          break;
-        }
-      } catch (e: any) {
-        // Log full error details for deep debugging
-        console.error(`DEBUG: Model ${name} failed. Error: ${e.message}`);
-        if (e.status) console.error(`DEBUG: Status: ${e.status}`);
-      }
+    const restResponse = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: reasoningPrompt }] }]
+      })
+    });
+
+    if (!restResponse.ok) {
+      const errorData = await restResponse.json();
+      console.error("DEBUG: REST API Error:", JSON.stringify(errorData));
+      throw new Error(`Google API returned ${restResponse.status}: ${restResponse.statusText}`);
     }
 
-    if (!success) {
-      throw new Error("All Gemini models failed to respond. Check API Key and Netlify Region.");
+    const restData = await restResponse.json();
+    const text = restData.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!text) {
+      throw new Error("No text returned from Gemini REST API");
     }
+
+    console.log("DEBUG: Success! Received response from Gemini REST API");
 
     // Improved JSON extraction: find the first '{' and last '}'
     const jsonMatch = text.match(/\{[\s\S]*\}/);
