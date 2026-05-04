@@ -39,8 +39,15 @@ export async function POST(req: Request) {
 
     const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY.trim());
     
-    // Try multiple model names to find one that works in this region
-    const modelNames = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-pro"];
+    // Try both short names and full "models/" names
+    const modelNames = [
+      "gemini-1.5-flash", 
+      "models/gemini-1.5-flash",
+      "gemini-1.5-flash-latest", 
+      "models/gemini-1.5-flash-latest",
+      "gemini-pro",
+      "models/gemini-pro"
+    ];
     let text = "";
     let success = false;
 
@@ -59,8 +66,9 @@ export async function POST(req: Request) {
           break;
         }
       } catch (e: any) {
-        console.error(`DEBUG: Model ${name} failed during generation:`, e.message);
-        // If it's a 404 or other error, it will continue to the next model in the loop
+        // Log full error details for deep debugging
+        console.error(`DEBUG: Model ${name} failed. Error: ${e.message}`);
+        if (e.status) console.error(`DEBUG: Status: ${e.status}`);
       }
     }
 
