@@ -12,6 +12,7 @@ export default function ReasoningLab() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [step, setStep] = useState(0);
   const [result, setResult] = useState<null | any>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const steps = [
     "Deconstructing semantic intent...",
@@ -25,6 +26,7 @@ export default function ReasoningLab() {
     setIsProcessing(true);
     setStep(0);
     setResult(null);
+    setErrorMsg(null);
 
     const supabase = getSupabaseClient();
 
@@ -57,8 +59,10 @@ export default function ReasoningLab() {
         setIsProcessing(false);
       }, 2000);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      clearInterval(stepInterval);
+      setErrorMsg(error.message || "An unexpected error occurred. Please try again.");
       setIsProcessing(false);
     }
   };
@@ -122,10 +126,19 @@ export default function ReasoningLab() {
               <Activity className="text-cyan-400" /> Analysis Matrix
             </h2>
 
-            {!isProcessing && !result && (
+            {!isProcessing && !result && !errorMsg && (
               <div className="flex-1 flex flex-col items-center justify-center text-center text-white-20">
                 <Brain size={64} className="mb-4 opacity-10" />
                 <p>Awaiting input parameters to begin logical deduction.</p>
+              </div>
+            )}
+
+            {!isProcessing && errorMsg && (
+              <div className="flex-1 flex flex-col items-center justify-center text-center text-red-400 p-6 bg-red-500/10 border border-red-500/20 rounded-2xl">
+                <Shield size={48} className="mb-4 opacity-80 text-red-500" />
+                <h3 className="text-xl font-bold mb-2">Analysis Failed</h3>
+                <p className="text-sm">{errorMsg}</p>
+                <p className="text-xs mt-4 opacity-60">Check the browser console for more details.</p>
               </div>
             )}
 
